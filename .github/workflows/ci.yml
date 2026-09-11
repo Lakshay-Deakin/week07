@@ -1,4 +1,4 @@
-# lakshay task 7.1P CI trigger
+# lakshay task 7.1P CI 
 name: Lakshay CI Pipeline
 
 on:
