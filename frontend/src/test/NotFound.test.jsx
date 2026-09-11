@@ -44,7 +44,7 @@ describe("NotFound page", () => {
 
     expect(
       screen.getByText("404")
-    ).not.toBeInTheDocument();
+    ).toBeInTheDocument();
 
     expect(
       screen.getByText(
