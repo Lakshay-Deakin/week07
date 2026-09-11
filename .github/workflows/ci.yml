@@ -1,4 +1,4 @@
-# lakshay task 7.1P CI 
+# Lakshay Task 7.2C CI Pipeline
 name: Lakshay CI Pipeline
 
 on:
@@ -88,11 +88,9 @@ jobs:
 
     steps:
 
-      # Node 24 compatible checkout action
       - name: Lakshay Checkout repository
         uses: actions/checkout@v6
 
-      # Node 24 compatible setup-python action
       - name: Lakshay Set up Python
         uses: actions/setup-python@v6
         with:
@@ -115,16 +113,55 @@ jobs:
 
 
   # =========================================================
+  # LAKSHAY - Frontend Tests
+  # Task 7.2C
+  # =========================================================
+  frontend-test:
+    name: Lakshay Frontend Tests
+    runs-on: ubuntu-latest
+
+    steps:
+
+      - name: Lakshay Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Lakshay Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Lakshay Install frontend dependencies
+        working-directory: frontend
+        run: |
+          npm ci
+
+      - name: Lakshay Run frontend tests
+        working-directory: frontend
+        env:
+          VITE_USER_SERVICE_URL: /api/user-service
+          VITE_STUDENT_SERVICE_URL: /api/student-service
+          VITE_LECTURER_SERVICE_URL: /api/lecturer-service
+          VITE_COURSE_SERVICE_URL: /api/course-service
+          VITE_ENROLLMENT_SERVICE_URL: /api/enrollment-service
+        run: |
+          npx vitest run
+
+
+  # =========================================================
   # LAKSHAY - Build and Push Docker Images
   # =========================================================
   build_and_push_images:
     name: Lakshay Build and Push ${{ matrix.image }}
     runs-on: ubuntu-latest
 
-    # CRITICAL:
-    # Docker images will only be built if ALL backend tests succeed
+    # Docker images will only be built and pushed if BOTH:
+    # 1. All backend tests pass
+    # 2. Frontend tests pass
     needs:
       - backend-test
+      - frontend-test
 
     strategy:
       fail-fast: false
@@ -151,11 +188,9 @@ jobs:
 
     steps:
 
-      # Node 24 compatible checkout
       - name: Lakshay Checkout repository
         uses: actions/checkout@v6
 
-      # Azure Login v3 uses the newer Node runtime
       - name: Lakshay Login to Azure
         uses: azure/login@v3
         with:
