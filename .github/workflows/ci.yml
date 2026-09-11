@@ -1,17 +1,21 @@
-name: CI Pipeline
+name: Lakshay CI Pipeline
 
 on:
-  # Manual trigger for the workflow
-  workflow_dispatch:
+  # Run automatically when code is pushed to main
+  push:
+    branches:
+      - main
 
+  # Allow manual execution from GitHub Actions
+  workflow_dispatch:
 
 jobs:
 
   # =========================================================
-  # Backend Tests
+  # LAKSHAY - Backend Tests
   # =========================================================
   backend-test:
-    name: Test ${{ matrix.service }}
+    name: Lakshay Test ${{ matrix.service }}
     runs-on: ubuntu-latest
 
     strategy:
@@ -39,6 +43,9 @@ jobs:
             database: enrollments
             port: 5437
 
+    # ---------------------------------------------------------
+    # PostgreSQL service used for backend tests
+    # ---------------------------------------------------------
     services:
       postgres:
         image: postgres:16
@@ -57,6 +64,9 @@ jobs:
           --health-timeout=5s
           --health-retries=10
 
+    # ---------------------------------------------------------
+    # Environment variables required by backend services
+    # ---------------------------------------------------------
     env:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
@@ -64,52 +74,56 @@ jobs:
       POSTGRES_HOST: localhost
       POSTGRES_PORT: ${{ matrix.port }}
 
-      JWT_SECRET_KEY: koalatech-ci-test-secret
+      JWT_SECRET_KEY: koalatech-lakshay-ci-test-secret
       JWT_ALGORITHM: HS256
       ACCESS_TOKEN_EXPIRE_MINUTES: 30
 
-      DEFAULT_ADMIN_USERNAME: admin
-      DEFAULT_ADMIN_EMAIL: admin@koalatech.edu.au
-      DEFAULT_ADMIN_PASSWORD: AdminPassword123!
+      DEFAULT_ADMIN_USERNAME: lakshay-admin
+      DEFAULT_ADMIN_EMAIL: lakshay-admin@koalatech.edu.au
+      DEFAULT_ADMIN_PASSWORD: LakshayAdminPassword123!
 
       AZURE_STORAGE_CONNECTION_STRING: ""
       AZURE_STORAGE_CONTAINER_NAME: ""
 
     steps:
 
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      # Node 24 compatible checkout action
+      - name: Lakshay Checkout repository
+        uses: actions/checkout@v6
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      # Node 24 compatible setup-python action
+      - name: Lakshay Set up Python
+        uses: actions/setup-python@v6
         with:
           python-version: "3.12"
 
-      - name: Install dependencies
+      - name: Lakshay Upgrade pip
         working-directory: ${{ matrix.service }}
         run: |
           python -m pip install --upgrade pip
+
+      - name: Lakshay Install dependencies
+        working-directory: ${{ matrix.service }}
+        run: |
           pip install -r requirements.txt
 
-      - name: Run tests
+      - name: Lakshay Run backend tests
         working-directory: ${{ matrix.service }}
         run: |
           pytest -v
 
 
   # =========================================================
-  # Build and Push Docker Images
+  # LAKSHAY - Build and Push Docker Images
   # =========================================================
-  build-and-push:
-    name: Build and Push ${{ matrix.image }}
+  build_and_push_images:
+    name: Lakshay Build and Push ${{ matrix.image }}
     runs-on: ubuntu-latest
 
-    # All backend tests must pass before this job starts
+    # CRITICAL:
+    # Docker images will only be built if ALL backend tests succeed
     needs:
       - backend-test
-
-    # Build and push when code is pushed to main or manually triggered
-    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
 
     strategy:
       fail-fast: false
@@ -117,38 +131,40 @@ jobs:
       matrix:
         include:
           - service: frontend
-            image: koalatech-frontend
+            image: lakshay-koalatech-frontend
 
           - service: user-service
-            image: koalatech-user-service
+            image: lakshay-koalatech-user-service
 
           - service: student-service
-            image: koalatech-student-service
+            image: lakshay-koalatech-student-service
 
           - service: lecturer-service
-            image: koalatech-lecturer-service
+            image: lakshay-koalatech-lecturer-service
 
           - service: course-service
-            image: koalatech-course-service
+            image: lakshay-koalatech-course-service
 
           - service: enrollment-service
-            image: koalatech-enrollment-service
+            image: lakshay-koalatech-enrollment-service
 
     steps:
 
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      # Node 24 compatible checkout
+      - name: Lakshay Checkout repository
+        uses: actions/checkout@v6
 
-      - name: Login to Azure
-        uses: azure/login@v2
+      # Azure Login v3 uses the newer Node runtime
+      - name: Lakshay Login to Azure
+        uses: azure/login@v3
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      - name: Login to Azure Container Registry
+      - name: Lakshay Login to Azure Container Registry
         run: |
           az acr login --name ${{ vars.ACR_NAME }}
 
-      - name: Build Docker image
+      - name: Lakshay Build Docker image
         run: |
           docker build \
             --platform linux/amd64 \
@@ -156,12 +172,18 @@ jobs:
             -t ${{ vars.ACR_LOGIN_SERVER }}/${{ matrix.image }}:latest \
             ./${{ matrix.service }}
 
-      - name: Push Docker image with commit SHA
+      - name: Lakshay Push Docker image with commit SHA
         run: |
           docker push \
             ${{ vars.ACR_LOGIN_SERVER }}/${{ matrix.image }}:${{ github.sha }}
 
-      - name: Push Docker image with latest tag
+      - name: Lakshay Push Docker image with latest tag
         run: |
           docker push \
             ${{ vars.ACR_LOGIN_SERVER }}/${{ matrix.image }}:latest
+
+      - name: Lakshay Verify pushed repository
+        run: |
+          echo "Successfully pushed:"
+          echo "${{ vars.ACR_LOGIN_SERVER }}/${{ matrix.image }}:${{ github.sha }}"
+          echo "${{ vars.ACR_LOGIN_SERVER }}/${{ matrix.image }}:latest"
